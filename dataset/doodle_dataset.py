@@ -71,7 +71,7 @@ class DoodleDataset(torch.utils.data.Dataset):
         position_list = self._get_position_list(scaled_data)
         points_offset = self._get_points_offsets(scaled_data)
         sketch_stroke_num = torch.tensor(len(data["lines"])) # Number of strokes
-        stroke_number = self._get_stroke_num(scaled_data) # Vector with strokes order
+        stroke_number = self._get_stroke_num(scaled_data) 
         drawing = self._get_drawings(scaled_data)
         
         edge_index = get_graph_data(sketch_stroke_num)
@@ -81,7 +81,7 @@ class DoodleDataset(torch.utils.data.Dataset):
         )
 
         # One hot vector with 1 at the index of used segment labels
-        seg_label2=torch.zeros((87)) # whtf is 87 ??? Max number of segment classes?
+        seg_label2 = torch.zeros((len(self.meta.IND2SEGMENTLABEL), ))
         for i in range(components_num):
             seg_label2[seg_label1[i]] = 1
 
@@ -169,7 +169,6 @@ class DoodleDataset(torch.utils.data.Dataset):
 
         return data
     
-
     def _get_position_list(self, data):
         result = torch.zeros(self.meta.MAX_STROKE_NUM, 2)
         
@@ -200,10 +199,10 @@ class DoodleDataset(torch.utils.data.Dataset):
     
     def _get_stroke_num(self, data):
         result = torch.zeros(self.meta.MAX_STROKE_NUM)
-        strokes_num = len(data["lines"])
-        strokes_num = min(strokes_num, self.meta.MAX_STROKE_NUM)
 
-        result[:strokes_num] = torch.arange(start=1, end=strokes_num+1, step=1)
+        for i, line in enumerate(data["lines"]):
+            result[i] = len(line)
+
         return result
     
     def _get_drawings(self, data):
