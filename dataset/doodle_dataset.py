@@ -54,16 +54,33 @@ class DoodleDataset(torch.utils.data.Dataset):
         self.data_dir = Path(data_dir)
         self.all_paths = list(self.data_dir.glob(f"*/*.json"))
 
+    @staticmethod
+    def from_paths(paths: List[Path]):
+        dataset = DoodleDataset.__new__(DoodleDataset)
+        dataset.all_paths = paths
+        return dataset
+
+    def num_classes(self):
+        return len(self.meta.IND2CLS)
+
     def __len__(self):
         return len(self.all_paths)
     
     def __getitem__(self, idx):
         path: Path = self.all_paths[idx]
+        sample = self.get_sample_from_path(path, key_id=idx)
+        return sample
+
+    def get_sample_from_path(self, path: Path, category: int = None, key_id: int = -1):
         data = self._load_data(path)
+        category = category or self.meta.CLS2IND[path.parent.name]
+        return self.get_sample_from_dict(data, category=category, key_id=key_id)
+
+    def get_sample_from_dict(self, data, category: int, key_id: int):
         scaled_data = self._scale_strokes(data)
 
-        key_id = torch.tensor(idx)
-        category = torch.tensor(self.meta.CLS2IND[path.parent.name])
+        key_id = torch.tensor(key_id)
+        category = torch.tensor(category)
         seg_label = self._get_seg_label(scaled_data)
         seg_label1 = self._get_seg_label1(scaled_data)
         components_num = torch.unique(seg_label1).shape[0] - 1 # - 1 for <empty>
@@ -71,7 +88,7 @@ class DoodleDataset(torch.utils.data.Dataset):
         position_list = self._get_position_list(scaled_data)
         points_offset = self._get_points_offsets(scaled_data)
         sketch_stroke_num = torch.tensor(len(data["lines"])) # Number of strokes
-        stroke_number = self._get_stroke_num(scaled_data) 
+        stroke_number = self._get_stroke_num(scaled_data) # Number of points in each stroke
         drawing = self._get_drawings(scaled_data)
         
         edge_index = get_graph_data(sketch_stroke_num)
@@ -101,8 +118,8 @@ class DoodleDataset(torch.utils.data.Dataset):
             
             # DEBUG 
             # Delete these lines after debugging
-            "drawing": drawing,
-            "strokes": scaled_data["lines"],
+            # "drawing": drawing,
+            # "strokes": scaled_data["lines"],
         }
 
         return sample
