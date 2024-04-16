@@ -130,61 +130,18 @@ def parse_inference_opt():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        '--ckpt_path', '-ckpt_path',
+        '--sample_path', '-sample_path',
         type=str,
-        default='')
-
-    parser.add_argument(
-        '--dataset_path', '-dataset_path',
-        type=str,
-        default='./data')
-
-    parser.add_argument(
-        '--bs', '-bs',
-        type=int,
-        default=128)
-
-    parser.add_argument(
-        '--max_stroke', '-max_stroke',
-        type=int,
-        default=43)
-
-    parser.add_argument(
-        '--mask', '-mask',
-        type=_str_to_bool, nargs='?', const=True,
-        default=False)
-
-    parser.add_argument(
-        '--shape_emb', '-shape_emb',
-        type=str,
-        default='sum')
-
-    parser.add_argument(
-        '--shape_extractor', '-shape_extractor',
-        type=str,
-        default='lstm')
-
-    parser.add_argument(
-        '--shape_extractor_layer', '-shape_extractor_layer',
-        type=int,
-        default=2)
-
-    parser.add_argument(
-        '--embedding_dropout', '-embedding_dropout',
-        type=float,
-        default=0
+        required=True,
+        help='Path to the sample sketch file in a .json format'
     )
 
     parser.add_argument(
-        '--attention_dropout', '-attention_dropout',
-        type=float,
-        default=0
+        "--dataset_path",
+        type=str,
+        default="./data",
+        help="Path to the dataset folder"
     )
-
-    parser.add_argument(
-        '--local_rank', '-local_rank',
-        type=int,
-        default=0)
 
     args = parser.parse_args()
 
