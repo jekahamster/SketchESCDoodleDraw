@@ -116,10 +116,10 @@ def parse_opt():
         help='Dropout rate for attention layers')
 
     parser.add_argument(
-        '--local_rank', '-local_rank',
+        '--gpu', '-gpu',
         type=int,
         default=0,
-        help='GPU index for distributed training')
+        help='GPU index for training')
 
     args = parser.parse_args()
 

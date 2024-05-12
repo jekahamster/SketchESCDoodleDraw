@@ -389,10 +389,10 @@ def main(opt):
     max_stroke = opt['max_stroke']
 
     batch_size = opt['bs']
-    local_rank = opt['local_rank']
-    torch.cuda.set_device(local_rank)
+    gpu_index = opt['gpu']
     # dist.init_process_group(backend='nccl')
-    devices = torch.device('cuda', local_rank)
+    device = torch.device(f"cuda:{gpu_index}" if torch.cuda.is_available() and gpu_index > -1 else "cpu")
+    print(f"Running on {device}")
     set_seed(3407)
 
     # if dist.get_rank() == 0:
@@ -400,7 +400,7 @@ def main(opt):
 
     train_dataset = QuickDrawDataset(opt['dataset_path'], 'train')
     # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=24,shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=24, shuffle=True)
 
     valid_dataset = QuickDrawDataset(opt['dataset_path'], 'test')
     # valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset)
@@ -414,18 +414,18 @@ def main(opt):
         # model = ViTForSketchClassification.from_pretrained('google/vit-base-patch16-224', opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(devices)
         print(1)
     else:
-        model = ViTForSketchClassification.from_pretrained(opt['pretrain_path'], opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(devices)
+        model = ViTForSketchClassification.from_pretrained(opt['pretrain_path'], opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(device)
     # model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
 
     # optim = get_optim(model.base_model, opt['lr'], opt['weight_decay'])
     optim =  torch.optim.Adam(model.parameters(),opt['lr'])
-    recog_criterion = nn.CrossEntropyLoss().to(devices)
+    recog_criterion = nn.CrossEntropyLoss().to(device)
     #用seg_criterion1做分割监督的loss
     #mempool里做过softmax了，这里用log+nllloss。
-    seg_criterion = nn.NLLLoss(ignore_index=86).to(devices)
-    seg_criterion1 = nn.CrossEntropyLoss(ignore_index=86).to(devices)
-    train(train_loader, valid_loader, test_loader, model, optim, recog_criterion, devices, opt,seg_criterion,seg_criterion1)
+    seg_criterion = nn.NLLLoss(ignore_index=86).to(device)
+    seg_criterion1 = nn.CrossEntropyLoss(ignore_index=86).to(device)
+    train(train_loader, valid_loader, test_loader, model, optim, recog_criterion, device, opt,seg_criterion,seg_criterion1)
 
 
 if __name__ == "__main__":
