@@ -8,3 +8,4 @@ ndjson
 transformers
 torch_scatter
 torch_geometric==1.6.0
+torch_sparse==0.6.18
