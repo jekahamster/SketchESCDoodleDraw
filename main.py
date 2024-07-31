@@ -3,7 +3,7 @@ import os
 import random
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "2"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 import numpy as np
 import torch
 # import torch.distributed as dist
@@ -175,8 +175,7 @@ def test(loader, model, devices, opt):
         # dist.reduce(seg_running_corrects, dst=0)
         return running_corrects,seg_running_corrects,encoder_seg_acc,loss_sum
 
-def train(train_loader, valid_loader, test_loader, model, optim, criterion, devices, opt,seg_criterion,seg_criterion1):
-    max_epoch = 200
+def train(train_loader, valid_loader, test_loader, model, optim, criterion, devices, opt, seg_criterion, seg_criterion1, max_epoch = 200):
     best_acc = 0
     iter = 0
     iter_test = 1
@@ -411,7 +410,7 @@ def main(opt):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=24)
     
     if opt['pretrain_path'] is None:
-        # model = ViTForSketchClassification.from_pretrained('google/vit-base-patch16-224', opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(devices)
+        model = ViTForSketchClassification.from_pretrained('google/vit-base-patch16-224', opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(device)
         print(1)
     else:
         model = ViTForSketchClassification.from_pretrained(opt['pretrain_path'], opt, labels_number=train_dataset.num_categories(), attention_probs_dropout_prob=opt['attention_dropout'], hidden_dropout_prob=opt['embedding_dropout'], use_mask_token=opt['mask']).to(device)
@@ -425,7 +424,7 @@ def main(opt):
     #mempool里做过softmax了，这里用log+nllloss。
     seg_criterion = nn.NLLLoss(ignore_index=86).to(device)
     seg_criterion1 = nn.CrossEntropyLoss(ignore_index=86).to(device)
-    train(train_loader, valid_loader, test_loader, model, optim, recog_criterion, device, opt,seg_criterion,seg_criterion1)
+    train(train_loader, valid_loader, test_loader, model, optim, recog_criterion, device, opt,seg_criterion,seg_criterion1, max_epoch=opt["max_epoch"])
 
 
 if __name__ == "__main__":
