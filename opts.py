@@ -42,7 +42,7 @@ def parse_opt():
     parser.add_argument(
         '--pretrain_path', '-pretrain_path',
         type=str,
-        default="./pretrained_model",
+        default=None,
         help='Path to the pre-trained model for fine-tuning'    
     )
 
@@ -121,6 +121,13 @@ def parse_opt():
         default=0,
         help='GPU index for training')
 
+    parser.add_argument(
+        "--max_epoch",
+        type=int,
+        default=200, 
+        help="Max count of training epochs"
+    )
+    
     args = parser.parse_args()
 
     return args
