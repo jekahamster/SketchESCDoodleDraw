@@ -2,7 +2,6 @@ import os
 import numpy as np
 import torch 
 import json
-import random
 
 from pathlib import Path
 from torch_geometric.data import Data as pygData
@@ -50,33 +49,33 @@ class DoodleDataset(torch.utils.data.Dataset):
     mode_indices = {'train': 0, 'valid': 1, 'test': 2}
     meta = DoodleDatasetMeta()
 
-    def __init__(self, data_dir):
+    def __init__(self, data_dir: Union[str, Path]):
         self.data_dir = Path(data_dir)
         self.all_paths = list(self.data_dir.glob(f"*/*.json"))
 
     @staticmethod
-    def from_paths(paths: List[Path]):
+    def from_paths(paths: List[Path]) -> 'DoodleDataset':
         dataset = DoodleDataset.__new__(DoodleDataset)
         dataset.all_paths = paths
         return dataset
 
-    def num_classes(self):
+    def num_classes(self) -> int:
         return len(self.meta.IND2CLS)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.all_paths)
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
         path: Path = self.all_paths[idx]
         sample = self.get_sample_from_path(path, key_id=idx)
         return sample
 
-    def get_sample_from_path(self, path: Path, category: int = None, key_id: int = -1):
+    def get_sample_from_path(self, path: Path, category: int = None, key_id: int = -1) -> Dict[str, Any]:
         data = self._load_data(path)
         category = category or self.meta.CLS2IND[path.parent.name]
         return self.get_sample_from_dict(data, category=category, key_id=key_id)
 
-    def get_sample_from_dict(self, data, category: int, key_id: int):
+    def get_sample_from_dict(self, data, category: int, key_id: int) -> Dict[str, Any]:
         scaled_data = self._scale_strokes(data)
 
         key_id = torch.tensor(key_id)
@@ -124,13 +123,13 @@ class DoodleDataset(torch.utils.data.Dataset):
 
         return sample
 
-    def _load_data(self, path):
+    def _load_data(self, path: Path) -> Dict[str, Any]:
         with open(path, 'r') as f:
             data = json.load(f)
         return data
     
-    def _get_seg_label(self, data):
-        int_labels = []
+    def _get_seg_label(self, data) -> torch.Tensor:
+        int_labels: List[int] = [] 
         for segment in data["segments"]:
             labels = set(segment)
             
@@ -141,32 +140,36 @@ class DoodleDataset(torch.utils.data.Dataset):
 
         result = torch.full((self.meta.MAX_STROKE_NUM, ), fill_value=self.meta.SEGMENTLABEL2IND["<empty>"])
         result[:len(int_labels)] = torch.tensor(int_labels)
-        return result
+        
+        return result # (MAX_STROKE_NUM, )
     
-    def _get_seg_label1(self, data):
+    def _get_seg_label1(self, data) -> torch.Tensor:
         classes: Set[str] = set()
+        
         for segment in data["segments"]:
-            # segment: List[str]
+            segment: List[str]
             classes.update(segment)
 
         ind_classes = [self.meta.SEGMENTLABEL2IND[cls] for cls in classes]
         result = torch.full((self.meta.MAX_STROKE_NUM, ), fill_value=self.meta.SEGMENTLABEL2IND["<empty>"])
         result[:len(ind_classes)] = torch.tensor(ind_classes)
-        return result
+        return result # (MAX_STROKE_NUM, )
     
-    def _get_stroke_mask(self, data):
+    def _get_stroke_mask(self, data: Dict[str, Any]) -> torch.Tensor:
         num_strokes = len(data["lines"])
         result = torch.full((self.meta.MAX_STROKE_NUM + 1, ), fill_value=1.0)
         result[:num_strokes+1] = 0.0
-        return result
+        return result # (MAX_STROKE_NUM + 1, )
     
-    def _scale_strokes(self, data):
+    def _scale_strokes(self, data: Dict[str, Any]) -> Dict[str, Any]:
         x_min, y_min = np.inf, np.inf
         x_max, y_max = -np.inf, -np.inf
 
         data = data.copy()
 
         for line in data["lines"]:
+            line: List[Tuple[float, float]] # [(x, y), ...]
+            
             for x, y in line:
                 x_min = min(x_min, x)
                 y_min = min(y_min, y)
@@ -186,16 +189,18 @@ class DoodleDataset(torch.utils.data.Dataset):
 
         return data
     
-    def _get_position_list(self, data):
+    def _get_position_list(self, data: Dict[str, Any]) -> torch.Tensor:
         result = torch.zeros(self.meta.MAX_STROKE_NUM, 2)
         
         for i, line in enumerate(data["lines"]):
+            line: List[Tuple[float, float]] # [(x, y), ...]
+            
             x, y = line[0]
             result[i, :2] = torch.tensor([x, y])
         
         return result
 
-    def _get_points_offsets(self, data):
+    def _get_points_offsets(self, data: Dict[str, Any]) -> torch.Tensor:
         result = torch.zeros(self.meta.MAX_STROKE_NUM, self.meta.MAX_POINTS_NUM, 4)
 
         for i, line in enumerate(data["lines"]):
@@ -212,20 +217,22 @@ class DoodleDataset(torch.utils.data.Dataset):
             
             result[i, len(line), 3] = 1.0 # pen_up (0, 0, 0, 1.0) | (x, y, pen_down, pen_up)
 
-        return result
+        return result # (MAX_STROKE_NUM, MAX_POINTS_NUM, 4)
     
-    def _get_stroke_num(self, data):
+    def _get_stroke_num(self, data: Dict[str, Any]) -> torch.Tensor:
         result = torch.zeros(self.meta.MAX_STROKE_NUM)
 
         for i, line in enumerate(data["lines"]):
             result[i] = len(line)
 
-        return result
+        return result # (MAX_STROKE_NUM, )
     
-    def _get_drawings(self, data):
+    def _get_drawings(self, data: Dict[str, Any]) -> torch.Tensor:
         result = torch.zeros(self.meta.MAX_POINTS_NUM, 3)
         ptr = 0
         for line in data["lines"]:
+            line: List[Tuple[float, float]] # [(x, y), ...]
+            
             if ptr + len(line) > self.meta.MAX_POINTS_NUM:
                 break
 
@@ -233,4 +240,5 @@ class DoodleDataset(torch.utils.data.Dataset):
             result[ptr:ptr+len(line), :2] = line
             ptr += len(line)
             result[ptr-1, 2] = 1.0
-        return result
+            
+        return result # (MAX_POINTS_NUM, 3)
